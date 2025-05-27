@@ -3,145 +3,170 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const cors = require('cors'); // NEU: CORS-Middleware importieren
 
+// PORT wird von der Hosting-Plattform (z.B. Railway) über Umgebungsvariablen gesetzt.
+// Fallback auf 3001 für lokale Entwicklung.
 const PORT = process.env.PORT || 3001;
-const HOST = '0.0.0.0'; // Lausche auf allen Netzwerkschnittstellen
+// HOST auf '0.0.0.0' setzen, damit der Server auf allen Netzwerkschnittstellen lauscht,
+// was für die meisten Hosting-Plattformen notwendig ist.
+const HOST = '0.0.0.0'; 
 
 const app = express();
 
-// Middleware
+// --- Middleware ---
+// CORS-Middleware aktivieren, um Anfragen von Figma-Domains zu erlauben
+app.use(cors({
+  origin: ['https://www.figma.com', 'https://figma.com'], // Erlaube Anfragen von Figma
+  // Du könntest hier weitere Optionen hinzufügen, falls nötig:
+  // methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  // allowedHeaders: "Content-Type,Authorization"
+}));
+
 app.use(express.json()); // Für das Parsen von JSON-Request-Bodies
 app.use(express.static(path.join(__dirname, 'public'))); // Stellt statische Dateien aus dem 'public'-Ordner bereit
 
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const clients = new Set(); // Speichert alle verbundenen WebSocket-Clients (Figma Plugin UIs)
+const figmaPluginClients = new Set(); 
+const webRemoteClients = new Set();   
 
-// Globale Zustände (Beispiele, in einer echten App besser in DB)
-let hardwareConfiguration = {};
-let hardwareStatus = {};
+let currentFigmaActiveComponentState = null; 
 
-console.log("Hardware Connector Server wird initialisiert...");
+console.log("Hardware Connector Server (v3 - Hosting Ready) wird initialisiert...");
 
 // --- WebSocket Server Logik ---
 wss.on('connection', (ws, req) => {
-    const ip = req.socket.remoteAddress;
-    console.log(`Neuer Client verbunden von IP: ${ip}`);
-    clients.add(ws);
+  // req.socket.remoteAddress kann bei Proxies die Proxy-IP sein.
+  // Besser ist es, x-forwarded-for zu verwenden, falls von der Plattform gesetzt.
+  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  console.log(`Neuer WebSocket-Client verbunden von IP: ${clientIp}`);
 
-    // Sende initiale Daten an den neu verbundenen Client
-    ws.send(JSON.stringify({ type: 'initial-config', payload: hardwareConfiguration }));
-    ws.send(JSON.stringify({ type: 'initial-status', payload: hardwareStatus }));
+  // Sende initiale Daten (falls vorhanden) an den neu verbundenen Client,
+  // besonders wichtig für Web Remotes, die den aktuellen Figma-Status brauchen.
+  if (currentFigmaActiveComponentState) {
+    ws.send(JSON.stringify({ type: 'figma-selection-update', payload: { activeComponent: currentFigmaActiveComponentState } }));
+  }
 
-    ws.on('message', (messageAsString) => {
-        try {
-            const message = JSON.parse(messageAsString);
-            console.log('Nachricht vom Client empfangen:', message);
+  ws.on('message', (messageAsString) => {
+    try {
+      const message = JSON.parse(messageAsString);
+      console.log('Nachricht vom WebSocket-Client empfangen:', message.type, message.payload || '');
 
-            switch (message.type) {
-                case 'update-config':
-                    hardwareConfiguration = message.payload;
-                    console.log('Hardware-Konfiguration aktualisiert:', hardwareConfiguration);
-                    broadcastMessage({ type: 'config-updated', payload: hardwareConfiguration });
-                    break;
-                case 'update-hardware-status':
-                    hardwareStatus = { ...hardwareStatus, ...message.payload };
-                    console.log('Hardware-Status aktualisiert:', hardwareStatus);
-                    broadcastMessage({ type: 'status-updated', payload: hardwareStatus });
-                    break;
-                // trigger-prototype-action wird jetzt über HTTP ausgelöst, kann aber hier bleiben, falls auch WS-Trigger gewünscht sind
-                case 'trigger-prototype-action':
-                    console.log('WebSocket: Aktion für Prototyp empfangen:', message.payload);
-                    broadcastMessage({ type: 'prototype-action-triggered', payload: message.payload });
-                    break;
-                default:
-                    console.log('Unbekannter WebSocket-Nachrichtentyp:', message.type);
+      switch (message.type) {
+        case 'ui-state-to-server': 
+          if (message.payload && typeof message.payload.activeComponent !== 'undefined') {
+            // console.log('Figma UI State vom Plugin empfangen:', message.payload.activeComponent?.name || 'Keine aktive Komponente');
+            currentFigmaActiveComponentState = message.payload.activeComponent;
+            figmaPluginClients.add(ws); 
+            webRemoteClients.delete(ws); 
+            broadcastToWebRemotes({ type: 'figma-selection-update', payload: { activeComponent: currentFigmaActiveComponentState } });
+          }
+          break;
+        
+        case 'web-remote-connected':
+            console.log('Web Remote UI hat sich identifiziert.');
+            webRemoteClients.add(ws);
+            figmaPluginClients.delete(ws);
+            if (currentFigmaActiveComponentState) {
+                ws.send(JSON.stringify({ type: 'figma-selection-update', payload: { activeComponent: currentFigmaActiveComponentState } }));
             }
-        } catch (error) {
-            console.error('Fehler beim Verarbeiten der WebSocket-Nachricht:', error, messageAsString);
-        }
-    });
+            break;
+        
+        // trigger-prototype-action bleibt hier, falls du es auch per WebSocket direkt vom Plugin auslösen willst
+        case 'trigger-prototype-action': 
+          console.log('WebSocket: Aktion für Prototyp empfangen:', message.payload);
+          broadcastToFigmaPlugins({ type: 'prototype-action-triggered', payload: message.payload }); // Nachricht an Plugin UI
+          break;
+          
+        default:
+          console.log('Unbekannter WebSocket-Nachrichtentyp vom Client:', message.type);
+      }
+    } catch (error) {
+      console.error('Fehler beim Verarbeiten der WebSocket-Nachricht:', error, messageAsString);
+    }
+  });
 
-    ws.on('close', () => {
-        console.log(`Client von IP ${ip} hat Verbindung getrennt`);
-        clients.delete(ws);
-    });
-
-    ws.on('error', (error) => {
-        console.error(`WebSocket Fehler von IP ${ip}:`, error);
-        clients.delete(ws);
-    });
+  ws.on('close', () => {
+    console.log(`WebSocket-Client von IP ${clientIp} hat Verbindung getrennt`);
+    figmaPluginClients.delete(ws);
+    webRemoteClients.delete(ws);
+  });
+  ws.on('error', (error) => console.error(`WebSocket Fehler von IP ${clientIp}:`, error));
 });
 
-function broadcastMessage(messageObject) {
-    const messageString = JSON.stringify(messageObject);
-    if (clients.size > 0) {
-        console.log(`Sende an ${clients.size} Client(s):`, messageString);
-        clients.forEach((client) => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(messageString, (err) => {
-                    if (err) {
-                        console.error("Fehler beim Senden der Broadcast-Nachricht:", err);
-                    }
-                });
-            }
+function broadcastToFigmaPlugins(messageObject) {
+  const messageString = JSON.stringify(messageObject);
+  if (figmaPluginClients.size > 0) {
+    // console.log(`Sende an ${figmaPluginClients.size} Figma Plugin(s):`, messageString);
+    figmaPluginClients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(messageString, (err) => {
+          if (err) console.error("Fehler beim Senden an Figma Plugin:", err);
         });
-    } else {
-        console.log("Keine Clients verbunden, um Nachricht zu senden:", messageString);
-    }
+      }
+    });
+  }
 }
 
-
+function broadcastToWebRemotes(messageObject) {
+  const messageString = JSON.stringify(messageObject);
+  if (webRemoteClients.size > 0) {
+    // console.log(`Sende an ${webRemoteClients.size} Web Remote(s):`, messageString);
+    webRemoteClients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(messageString, (err) => {
+          if (err) console.error("Fehler beim Senden an Web Remote:", err);
+        });
+      }
+    });
+  }
+}
 
 // --- HTTP API Endpunkte ---
+app.post('/api/trigger-endpoint', (req, res) => {
+  const { componentId, endpointId, buttonId } = req.body;
 
-// Endpunkt, um Button-Klicks von der Web-UI zu empfangen
-app.post('/api/trigger-figma-action', (req, res) => {
-    const { actionId, customMessage } = req.body; // Erwarte eine actionId und optional eine customMessage
+  if (!componentId || !endpointId || !buttonId) {
+    return res.status(400).json({ error: 'componentId, endpointId und buttonId sind erforderlich.' });
+  }
 
-    if (!actionId) {
-        return res.status(400).json({ error: 'actionId fehlt im Request Body' });
+  console.log(`HTTP: Trigger für Endpunkt empfangen: CompID='${componentId}', EpID='${endpointId}', BtnID='${buttonId}'`);
+
+  // Die Nachricht, die an die Figma Plugin UI gesendet wird.
+  const websocketMessageToFigmaPlugin = { // Typ-Annotation, falls RemoteEndpointTriggerToPluginUI serverseitig bekannt ist
+    type: 'remote-endpoint-trigger', 
+    payload: {
+      componentId,
+      endpointId,
+      buttonId,
+      timestamp: new Date().toISOString(),
     }
-
-    console.log(`HTTP: Figma-Aktion empfangen: ID='${actionId}', Eigene Nachricht:`, customMessage);
-
-    // Hier definierst du, welche WebSocket-Nachricht an das Figma-Plugin gesendet werden soll.
-    // Diese Nachricht ist jetzt anpassbar!
-    const websocketMessageToFigma = {
-        type: 'remote-trigger', // Ein neuer Nachrichtentyp für das Figma-Plugin
-        payload: {
-            triggeredBy: actionId, // Welcher Button auf der Webseite wurde geklickt
-            timestamp: new Date().toISOString(),
-            // Du kannst hier die 'customMessage' oder andere spezifische Daten einfügen
-            data: customMessage || `Aktion ${actionId} ausgelöst`,
-        }
-    };
-
-    broadcastMessage(websocketMessageToFigma);
-
-    res.status(200).json({ success: true, message: `Aktion '${actionId}' an Figma-Plugin(s) weitergeleitet.` });
+  };
+  broadcastToFigmaPlugins(websocketMessageToFigmaPlugin);
+  res.status(200).json({ success: true, message: `Trigger für Endpunkt '${buttonId}' an Figma weitergeleitet.` });
 });
 
-
-// Bestehende Endpunkte (optional, falls du sie noch brauchst)
-app.get('/api/config', (req, res) => res.json(hardwareConfiguration));
-app.post('/api/config', (req, res) => {
-    hardwareConfiguration = req.body;
-    broadcastMessage({ type: 'config-updated', payload: hardwareConfiguration });
-    res.status(200).json({ message: 'Konfiguration aktualisiert.', config: hardwareConfiguration });
-});
-app.get('/api/status', (req, res) => res.json(hardwareStatus));
-app.post('/api/status', (req, res) => {
-    hardwareStatus = { ...hardwareStatus, ...req.body };
-    broadcastMessage({ type: 'status-updated', payload: hardwareStatus });
-    res.status(200).json({ message: 'Status aktualisiert.', status: hardwareStatus });
-});
 
 // --- Server starten ---
 server.listen(PORT, HOST, () => {
-    console.log(`Server läuft auf http://${HOST}:${PORT} und ist im lokalen Netzwerk erreichbar.`);
-    console.log(`WebSocket Server lauscht auf Port ${PORT}`);
-    console.log(`Die Web-Oberfläche ist erreichbar unter http://DEINE_LOKALE_IP:${PORT}`);
-    console.log("Finde deine lokale IP-Adresse mit 'ipconfig' (Windows) oder 'ifconfig'/'ip addr' (macOS/Linux).");
+  console.log(`Server läuft auf Port ${PORT} und lauscht auf allen Interfaces (${HOST}).`);
+  console.log(`Stelle sicher, dass deine Clients (Figma Plugin UI, Web Remote) jetzt auf die korrekte gehostete URL zugreifen.`);
+  console.log(`Für lokale Tests ist die Web-Oberfläche weiterhin erreichbar unter http://localhost:${PORT} oder http://DEINE_LOKALE_IP:${PORT}`);
 });
+
+// Typ-Definition für die Nachricht an das Plugin (kann auch in einer .d.ts Datei sein)
+/**
+ * @typedef {object} RemoteEndpointTriggerPayload
+ * @property {string} componentId
+ * @property {string} endpointId
+ * @property {string} buttonId
+ * @property {string} timestamp
+ */
+
+/**
+ * @typedef {object} RemoteEndpointTriggerToPluginUI
+ * @property {'remote-endpoint-trigger'} type
+ * @property {RemoteEndpointTriggerPayload} payload
+ */

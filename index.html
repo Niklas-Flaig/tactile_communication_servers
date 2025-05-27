@@ -5,179 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Figma Hardware Remote</title>
     <style>
-        body {
-            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f8f9fa;
-            color: #1c1b1f;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            line-height: 1.5;
-        }
-        .container {
-            background-color: #fffbff;
-            padding: 24px;
-            border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 420px;
-            box-sizing: border-box;
-            margin-bottom: 20px;
-        }
-        h1 {
-            color: #344054;
-            text-align: center;
-            margin-top: 0;
-            margin-bottom: 30px;
-            font-size: 24px;
-            font-weight: 500;
-        }
-        .button-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        button {
-            padding: 12px 24px;
-            font-size: 14px;
-            font-weight: 500;
-            letter-spacing: 0.1px;
-            text-transform: none;
-            color: #ffffff;
-            background-color: #6750a4; /* Material 3 Primary Color (Beispiel Lila) */
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
-            text-align: center;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1); 
-        }
-        button:hover {
-            background-color: #5e4896;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 2px 6px rgba(0,0,0,0.15);
-        }
-        button:active {
-            background-color: #533e85;
-            transform: translateY(1px);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
-        }
-        button.tonal {
-            background-color: #e8def8;
-            color: #21005d;
-            box-shadow: none;
-        }
-        button.tonal:hover {
-            background-color: #d0c2ec;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-        button.tonal:active {
-            background-color: #b8a8e0;
-            transform: translateY(1px);
-            box-shadow: none;
-        }
-        button.accent {
-            background-color: #4CAF50;
-            color: white;
-        }
-        button.accent:hover {
-            background-color: #45a049;
-        }
-        button.accent:active {
-            background-color: #3f8f42;
-        }
-        .section {
-            margin-bottom: 24px;
-            padding-bottom: 24px;
-            border-bottom: 1px solid #cac4d0; /* Material 3 Outline Variant */
-        }
-        .section:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #49454f;
-            font-size: 14px;
-        }
-        input[type="text"] {
-            width: calc(100% - 24px);
-            padding: 12px;
-            margin-bottom: 16px;
-            border: 1px solid #79747e;
-            border-radius: 8px;
-            font-size: 16px;
-            background-color: #fef7ff;
-            color: #1c1b1f;
-        }
-        input[type="text"]::placeholder {
-            color: #9e9e9e;
-        }
-        #status, #gemini-status {
-            margin-top: 20px;
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
-            font-size: 14px;
-            font-weight: 500;
-            display: none; 
-        }
-        #status.success, #gemini-status.success {
-            background-color: #d1e7dd;
-            color: #0f5132;
-            border: 1px solid #badbcc;
-            display: block;
-        }
-        #status.error, #gemini-status.error {
-            background-color: #f8d7da;
-            color: #842029;
-            border: 1px solid #f5c2c7;
-            display: block;
-        }
-        .loading-indicator {
-            display: none; /* Standardmäßig versteckt */
-            text-align: center;
-            padding: 10px;
-            font-style: italic;
-            color: #5f6368;
-        }
-        .suggestions-list {
-            list-style-type: none;
-            padding-left: 0;
-        }
-        .suggestions-list li {
-            background-color: #e8e8e8;
-            padding: 8px;
-            margin-bottom: 5px;
-            border-radius: 4px;
-        }
+        body { font-family: 'Roboto', sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; color: #1c1b1f; display: flex; flex-direction: column; align-items: center; line-height: 1.5; }
+        .container { background-color: #fffbff; padding: 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 420px; box-sizing: border-box; margin-bottom: 20px; }
+        h1 { color: #344054; text-align: center; margin-top: 0; margin-bottom: 20px; font-size: 24px; font-weight: 500; }
+        h2 { color: #344054; text-align: center; margin-top: 0; margin-bottom: 15px; font-size: 20px; font-weight: 500; }
+        h3 { color: #49454f; margin-top: 20px; margin-bottom: 10px; font-size: 16px; font-weight: 500; border-bottom: 1px solid #cac4d0; padding-bottom: 5px;}
+        .button-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        button { padding: 10px 20px; font-size: 14px; font-weight: 500; letter-spacing: 0.1px; color: #ffffff; background-color: #6750a4; border: none; border-radius: 20px; cursor: pointer; transition: background-color 0.2s ease, box-shadow 0.2s ease; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+        button:hover { background-color: #5e4896; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        button:disabled { background-color: #e0e0e0; color: #a0a0a0; cursor: not-allowed; box-shadow: none;}
+        .section { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #cac4d0; }
+        .section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        #status { margin-top: 15px; padding: 10px; border-radius: 8px; text-align: center; font-size: 14px; display: none; }
+        #status.success { background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc; display: block; }
+        #status.error { background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7; display: block; }
+        .no-active-component { text-align: center; color: #5f6368; font-style: italic; }
+        .endpoint-button { margin-top: 5px;} /* Style für dynamische Buttons */
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Figma Remote Steuerung</h1>
-
-        <div class="section button-grid-section">
-             <h3>Standard Aktionen</h3>
-            <div class="button-grid">
-                <button data-action-id="BUTTON_1">Button 1</button>
-                <button data-action-id="BUTTON_2">Button 2</button>
-                <button data-action-id="BUTTON_3" class="tonal">Button 3</button>
-                <button data-action-id="BUTTON_4" class="tonal">Button 4</button>
-                <button data-action-id="BUTTON_5">Button 5</button>
-                <button data-action-id="BUTTON_6">Button 6</button>
+        <div id="activeComponentInfo" class="section">
+            <h2>Aktive Komponente in Figma</h2>
+            <p id="activeComponentName" class="no-active-component">Keine Hardware-Komponente in Figma ausgewählt.</p>
+            <div id="endpointButtonsContainer" class="button-grid">
+                {/* Endpunkt-Buttons werden hier dynamisch eingefügt */}
             </div>
-        </div>
-
-        <div class="section custom-message-section">
-            <label for="customMessageInput">Eigene Nachricht an Figma (optional):</label>
-            <input type="text" id="customMessageInput" placeholder="z.B. spezifische Daten oder Befehl">
-            <button id="sendCustomMessageButton" class="accent" style="width:100%;">Spezifische Aktion senden</button>
         </div>
         <div id="status"></div>
     </div>
@@ -185,83 +39,125 @@
     <div class="container">
         <h2>✨ Aktionsideen von Gemini</h2>
         <p style="font-size: 12px; color: #5f6368; text-align: center; margin-bottom:15px;">
-            Benötigst du Inspiration, was deine Buttons tun könnten? Gemini hilft!
+            Inspiration für deine Buttons?
         </p>
-        <label for="actionContextInput">Optional: Kontext für Ideen (z.B. "für eine Präsentation", "für einen Usability-Test")</label>
-        <input type="text" id="actionContextInput" placeholder="Kontext eingeben...">
+        <input type="text" id="actionContextInput" placeholder="Optional: Kontext für Ideen..." style="width: calc(100% - 24px); padding: 10px; margin-bottom: 10px; border: 1px solid #79747e; border-radius: 8px;">
         <button id="generateIdeasButton" style="width:100%;">Ideen generieren</button>
-        <div class="loading-indicator" id="geminiLoading">Lade Vorschläge...</div>
-        <div id="gemini-status">
-            <ul class="suggestions-list" id="suggestionsList"></ul>
+        <div id="geminiLoading" style="display: none; text-align: center; padding: 10px;">Lade...</div>
+        <div id="gemini-status" style="margin-top:15px;">
+            <ul id="suggestionsList" style="list-style-type: none; padding-left: 0;"></ul>
         </div>
     </div>
 
-
     <script>
+        const activeComponentNameEl = document.getElementById('activeComponentName');
+        const endpointButtonsContainerEl = document.getElementById('endpointButtonsContainer');
         const statusDiv = document.getElementById('status');
-        const customMessageInput = document.getElementById('customMessageInput');
+        // Gemini-bezogene Elemente bleiben wie in der vorherigen Version
+
+        let currentActiveComponentData = null; // Speichert die Daten der aktiven Komponente
+
+        // WebSocket-Verbindung zum Server herstellen
+        const socket = new WebSocket('ws://localhost:3001'); // Oder deine Server-IP, wenn nicht lokal
+
+        socket.onopen = () => {
+            console.log('WebSocket zur Web-Remote UI hergestellt.');
+            // Optional: Nachricht an Server senden, dass diese UI bereit ist
+        };
+
+        socket.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                console.log('Nachricht vom Server (Web-Remote):', message);
+                if (message.type === 'figma-selection-update') {
+                    currentActiveComponentData = message.payload.activeComponent;
+                    updateEndpointButtons();
+                }
+            } catch (e) {
+                console.error("Fehler beim Parsen der Server-Nachricht:", e);
+            }
+        };
+
+        socket.onclose = () => {
+            console.log('WebSocket zur Web-Remote UI getrennt.');
+            activeComponentNameEl.textContent = 'Serververbindung getrennt.';
+            activeComponentNameEl.className = 'no-active-component error';
+            endpointButtonsContainerEl.innerHTML = '';
+        };
+        socket.onerror = (error) => {
+            console.error('WebSocket Fehler (Web-Remote):', error);
+            activeComponentNameEl.textContent = 'Fehler bei Serververbindung.';
+            activeComponentNameEl.className = 'no-active-component error';
+        };
+
+
+        function updateEndpointButtons() {
+            endpointButtonsContainerEl.innerHTML = ''; // Alte Buttons entfernen
+            if (currentActiveComponentData && currentActiveComponentData.endpoints) {
+                activeComponentNameEl.textContent = currentActiveComponentData.name;
+                activeComponentNameEl.className = ''; // Reset class
+
+                if (currentActiveComponentData.endpoints.length > 0) {
+                    currentActiveComponentData.endpoints.forEach(endpoint => {
+                        const button = document.createElement('button');
+                        button.textContent = endpoint.buttonId || endpoint.name.replace('[ENDPOINT_]', '').replace(']', '');
+                        button.dataset.componentId = currentActiveComponentData.id;
+                        button.dataset.endpointId = endpoint.id;
+                        button.dataset.buttonId = endpoint.buttonId;
+                        button.classList.add('endpoint-button');
+                        button.addEventListener('click', handleEndpointButtonClick);
+                        endpointButtonsContainerEl.appendChild(button);
+                    });
+                } else {
+                    endpointButtonsContainerEl.innerHTML = '<p class="no-active-component">Diese Komponente hat keine definierten Endpunkte.</p>';
+                }
+            } else {
+                activeComponentNameEl.textContent = 'Keine Hardware-Komponente in Figma ausgewählt.';
+                activeComponentNameEl.className = 'no-active-component';
+            }
+        }
+
+        async function handleEndpointButtonClick(event) {
+            const button = event.currentTarget;
+            const componentId = button.dataset.componentId;
+            const endpointId = button.dataset.endpointId;
+            const buttonId = button.dataset.buttonId; // Die "sprechende" ID des Endpunkts
+
+            statusDiv.style.display = 'none';
+            statusDiv.className = '';
+
+            try {
+                const response = await fetch('/api/trigger-endpoint', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ componentId, endpointId, buttonId }),
+                });
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    statusDiv.textContent = result.message || `Trigger für '${buttonId}' erfolgreich gesendet.`;
+                    statusDiv.className = 'success';
+                } else {
+                    throw new Error(result.error || 'Unbekannter Fehler vom Server.');
+                }
+            } catch (error) {
+                console.error('Fehler beim Triggern des Endpunkts:', error);
+                statusDiv.textContent = `Fehler: ${error.message}`;
+                statusDiv.className = 'error';
+            }
+            statusDiv.style.display = 'block';
+        }
         
+        // Gemini-bezogenes JavaScript (aus der vorherigen Version)
         const geminiStatusDiv = document.getElementById('gemini-status');
         const suggestionsList = document.getElementById('suggestionsList');
         const generateIdeasButton = document.getElementById('generateIdeasButton');
         const actionContextInput = document.getElementById('actionContextInput');
         const geminiLoadingIndicator = document.getElementById('geminiLoading');
 
-        async function triggerFigmaAction(actionId, customText = null) {
-            statusDiv.style.display = 'none'; 
-            statusDiv.className = ''; 
-
-            const payload = { actionId: actionId };
-            if (customText !== null && customText !== "") { 
-                payload.customMessage = customText;
-            }
-
-            try {
-                const response = await fetch('/api/trigger-figma-action', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-                const result = await response.json();
-                if (response.ok && result.success) {
-                    statusDiv.textContent = result.message || `Aktion '${actionId}' erfolgreich gesendet.`;
-                    statusDiv.className = 'success';
-                    statusDiv.style.display = 'block';
-                } else {
-                    throw new Error(result.error || 'Unbekannter Fehler vom Server.');
-                }
-            } catch (error) {
-                console.error('Fehler beim Senden der Aktion:', error);
-                statusDiv.textContent = `Fehler: ${error.message}`;
-                statusDiv.className = 'error';
-                statusDiv.style.display = 'block';
-            }
-        }
-
-        document.querySelectorAll('.button-grid button').forEach(button => {
-            button.addEventListener('click', () => {
-                const actionId = button.dataset.actionId;
-                triggerFigmaAction(actionId);
-            });
-        });
-
-        document.getElementById('sendCustomMessageButton').addEventListener('click', () => {
-            const customText = customMessageInput.value.trim();
-            if (customText) {
-                triggerFigmaAction('CUSTOM_MESSAGE_ACTION', customText);
-                customMessageInput.value = ''; 
-            } else {
-                statusDiv.textContent = 'Bitte gib eine Nachricht ein, um sie zu senden.';
-                statusDiv.className = 'error';
-                statusDiv.style.display = 'block';
-            }
-        });
-
-        // --- Gemini API Integration ---
         generateIdeasButton.addEventListener('click', async () => {
             geminiLoadingIndicator.style.display = 'block';
             geminiStatusDiv.style.display = 'none';
-            suggestionsList.innerHTML = ''; // Alte Vorschläge löschen
+            suggestionsList.innerHTML = ''; 
 
             const userContext = actionContextInput.value.trim();
             let prompt = "Ich baue eine Fernbedienung für Figma-Prototypen mit physischen Knöpfen. Gib mir einige kreative Ideen für Aktionen, die diese Knöpfe in einem Figma-Prototyp auslösen könnten. Formuliere die Ideen als kurze, prägnante Aktionen oder Befehle. Gib mir 5 Ideen.";
@@ -271,7 +167,7 @@
             
             let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
             const payload = { contents: chatHistory };
-            const apiKey = ""; // Leer lassen, wird von der Umgebung bereitgestellt
+            const apiKey = "";
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
             try {
@@ -291,8 +187,6 @@
                     result.candidates[0].content.parts.length > 0) {
                     
                     const text = result.candidates[0].content.parts[0].text;
-                    // Der Text könnte eine einzelne Zeichenkette mit nummerierten Ideen sein oder Zeilenumbrüche enthalten.
-                    // Wir versuchen, sie in einzelne Listenelemente aufzuteilen.
                     const ideas = text.split('\n').map(idea => idea.trim().replace(/^[\d.*-\s]+/, '')).filter(idea => idea.length > 0);
                     
                     if (ideas.length > 0) {
@@ -302,7 +196,6 @@
                             suggestionsList.appendChild(li);
                         });
                         geminiStatusDiv.className = 'success';
-                        geminiStatusDiv.style.display = 'block';
                     } else {
                         throw new Error("Keine validen Ideen im API-Antworttext gefunden.");
                     }
@@ -314,12 +207,11 @@
                 console.error('Fehler beim Generieren der Aktionsideen:', error);
                 geminiStatusDiv.textContent = `Fehler: ${error.message}`;
                 geminiStatusDiv.className = 'error';
-                geminiStatusDiv.style.display = 'block';
             } finally {
                 geminiLoadingIndicator.style.display = 'none';
+                geminiStatusDiv.style.display = 'block';
             }
         });
-
     </script>
 </body>
 </html>
