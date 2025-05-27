@@ -8,9 +8,6 @@ const cors = require('cors'); // NEU: CORS-Middleware importieren
 // PORT wird von der Hosting-Plattform (z.B. Railway) über Umgebungsvariablen gesetzt.
 // Fallback auf 3001 für lokale Entwicklung.
 const PORT = process.env.PORT || 3001;
-// HOST auf '0.0.0.0' setzen, damit der Server auf allen Netzwerkschnittstellen lauscht,
-// was für die meisten Hosting-Plattformen notwendig ist.
-const HOST = '0.0.0.0';
 
 const app = express();
 
@@ -24,7 +21,7 @@ app.use(cors({
 }));
 
 app.use(express.json()); // Für das Parsen von JSON-Request-Bodies
-app.use(express.static(path.join(__dirname, 'public'))); // Stellt statische Dateien aus dem 'public'-Ordner bereit
+app.use(express.static(path.join(__dirname, '/public'))); // Stellt statische Dateien aus dem 'public'-Ordner bereit
 
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -153,19 +150,16 @@ app.post('/api/trigger-endpoint', (req, res) => {
     const { componentId, endpointId, buttonId } = req.body;
     // ... (Logik bleibt ähnlich, sendet 'remote-endpoint-trigger-from-electron' an Figma Plugins) ...
     const messageToFigma = {
-      type: 'remote-endpoint-trigger-from-electron',
-      payload: { componentId, endpointId, buttonId, timestamp: new Date().toISOString() }
+        type: 'remote-endpoint-trigger-from-electron',
+        payload: { componentId, endpointId, buttonId, timestamp: new Date().toISOString() }
     };
     broadcastToFigmaPlugins(messageToFigma);
     res.status(200).json({ success: true, message: `Trigger für Endpunkt '${buttonId}' weitergeleitet.` });
-  });
-
+});
 
 // --- Server starten ---
-server.listen(PORT, HOST, () => {
-    console.log(`Server läuft auf Port ${PORT} und lauscht auf allen Interfaces (${HOST}).`);
-    console.log(`Stelle sicher, dass deine Clients (Figma Plugin UI, Web Remote) jetzt auf die korrekte gehostete URL zugreifen.`);
-    console.log(`Für lokale Tests ist die Web-Oberfläche weiterhin erreichbar unter http://localhost:${PORT} oder http://DEINE_LOKALE_IP:${PORT}`);
+server.listen(PORT, () => {
+    console.log(`Server läuft auf Port ${PORT}`);
 });
 
 // Typ-Definition für die Nachricht an das Plugin (kann auch in einer .d.ts Datei sein)
