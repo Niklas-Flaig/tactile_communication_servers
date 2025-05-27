@@ -30,54 +30,68 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 const figmaPluginClients = new Set();
-const webRemoteClients = new Set();
+const electronAppClients = new Set();
 
-let currentFigmaActiveComponentState = null;
+let currentFigmaState = {
+    activeComponent: null,
+    allPageComponents: []
+};
 
 console.log("Hardware Connector Server (v3 - Hosting Ready) wird initialisiert...");
 
 // --- WebSocket Server Logik ---
 wss.on('connection', (ws, req) => {
-    // req.socket.remoteAddress kann bei Proxies die Proxy-IP sein.
-    // Besser ist es, x-forwarded-for zu verwenden, falls von der Plattform gesetzt.
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
     console.log(`Neuer WebSocket-Client verbunden von IP: ${clientIp}`);
 
-    // Sende initiale Daten (falls vorhanden) an den neu verbundenen Client,
-    // besonders wichtig für Web Remotes, die den aktuellen Figma-Status brauchen.
-    if (currentFigmaActiveComponentState) {
-        ws.send(JSON.stringify({ type: 'figma-selection-update', payload: { activeComponent: currentFigmaActiveComponentState } }));
-    }
+    // Client muss sich identifizieren oder wir versuchen es zu erraten
+    // Hier senden wir erstmal den allgemeinen Figma-Status an jeden neuen Client
+    ws.send(JSON.stringify({ type: 'figma-state-update-for-electron', payload: currentFigmaState }));
+
 
     ws.on('message', (messageAsString) => {
         try {
             const message = JSON.parse(messageAsString);
-            console.log('Nachricht vom WebSocket-Client empfangen:', message.type, message.payload || '');
+            console.log('Nachricht vom WebSocket-Client empfangen:', message.type);
 
             switch (message.type) {
-                case 'ui-state-to-server':
-                    if (message.payload && typeof message.payload.activeComponent !== 'undefined') {
-                        // console.log('Figma UI State vom Plugin empfangen:', message.payload.activeComponent?.name || 'Keine aktive Komponente');
-                        currentFigmaActiveComponentState = message.payload.activeComponent;
+                // Nachricht von der Figma Plugin UI
+                case 'figma-state-to-server':
+                    if (message.payload) {
+                        console.log('Figma State vom Plugin empfangen.');
+                        currentFigmaState = message.payload; // Speichere activeComponent und allPageComponents
+
+                        // Identifiziere als Figma Plugin Client
                         figmaPluginClients.add(ws);
-                        webRemoteClients.delete(ws);
-                        broadcastToWebRemotes({ type: 'figma-selection-update', payload: { activeComponent: currentFigmaActiveComponentState } });
+                        electronAppClients.delete(ws);
+
+                        // Informiere alle Electron-App-Clients über die Änderung
+                        broadcastToElectronApps({ type: 'figma-state-update-for-electron', payload: currentFigmaState });
                     }
                     break;
 
-                case 'web-remote-connected':
-                    console.log('Web Remote UI hat sich identifiziert.');
-                    webRemoteClients.add(ws);
+                // Nachricht von der Electron App, um sich zu identifizieren
+                case 'electron-app-connected':
+                    console.log('Electron App hat sich identifiziert.');
+                    electronAppClients.add(ws);
                     figmaPluginClients.delete(ws);
-                    if (currentFigmaActiveComponentState) {
-                        ws.send(JSON.stringify({ type: 'figma-selection-update', payload: { activeComponent: currentFigmaActiveComponentState } }));
-                    }
+                    // Sende den aktuellen Figma-Status an die neu verbundene Electron-App
+                    ws.send(JSON.stringify({ type: 'figma-state-update-for-electron', payload: currentFigmaState }));
                     break;
 
-                // trigger-prototype-action bleibt hier, falls du es auch per WebSocket direkt vom Plugin auslösen willst
-                case 'trigger-prototype-action':
-                    console.log('WebSocket: Aktion für Prototyp empfangen:', message.payload);
-                    broadcastToFigmaPlugins({ type: 'prototype-action-triggered', payload: message.payload }); // Nachricht an Plugin UI
+                // Nachricht von der Electron App, um eine Aktion im Figma Plugin auszulösen
+                case 'trigger-endpoint-from-electron':
+                    if (message.payload) {
+                        console.log('Trigger von Electron App für Figma empfangen:', message.payload);
+                        const triggerMessageToFigma = {
+                            type: 'remote-endpoint-trigger-from-electron', // Dieser Typ wird vom Figma Plugin erwartet
+                            payload: {
+                                ...message.payload, // Enthält componentId, endpointId, buttonId
+                                timestamp: new Date().toISOString()
+                            }
+                        };
+                        broadcastToFigmaPlugins(triggerMessageToFigma);
+                    }
                     break;
 
                 default:
@@ -88,13 +102,23 @@ wss.on('connection', (ws, req) => {
         }
     });
 
-    ws.on('close', () => {
-        console.log(`WebSocket-Client von IP ${clientIp} hat Verbindung getrennt`);
-        figmaPluginClients.delete(ws);
-        webRemoteClients.delete(ws);
-    });
-    ws.on('error', (error) => console.error(`WebSocket Fehler von IP ${clientIp}:`, error));
+    ws.on('close', () => { /* ... */ figmaPluginClients.delete(ws); electronAppClients.delete(ws); });
+    ws.on('error', (error) => { /* ... */ figmaPluginClients.delete(ws); electronAppClients.delete(ws); });
 });
+
+function broadcastToElectronApps(messageObject) {
+    const messageString = JSON.stringify(messageObject);
+    if (electronAppClients.size > 0) {
+        console.log(`Sende an ${electronAppClients.size} Electron App(s):`, messageString);
+        electronAppClients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(messageString, (err) => {
+                    if (err) console.error("Fehler beim Senden an Electron App:", err);
+                });
+            }
+        });
+    }
+}
 
 function broadcastToFigmaPlugins(messageObject) {
     const messageString = JSON.stringify(messageObject);
@@ -127,26 +151,14 @@ function broadcastToWebRemotes(messageObject) {
 // --- HTTP API Endpunkte ---
 app.post('/api/trigger-endpoint', (req, res) => {
     const { componentId, endpointId, buttonId } = req.body;
-
-    if (!componentId || !endpointId || !buttonId) {
-        return res.status(400).json({ error: 'componentId, endpointId und buttonId sind erforderlich.' });
-    }
-
-    console.log(`HTTP: Trigger für Endpunkt empfangen: CompID='${componentId}', EpID='${endpointId}', BtnID='${buttonId}'`);
-
-    // Die Nachricht, die an die Figma Plugin UI gesendet wird.
-    const websocketMessageToFigmaPlugin = { // Typ-Annotation, falls RemoteEndpointTriggerToPluginUI serverseitig bekannt ist
-        type: 'remote-endpoint-trigger',
-        payload: {
-            componentId,
-            endpointId,
-            buttonId,
-            timestamp: new Date().toISOString(),
-        }
+    // ... (Logik bleibt ähnlich, sendet 'remote-endpoint-trigger-from-electron' an Figma Plugins) ...
+    const messageToFigma = {
+      type: 'remote-endpoint-trigger-from-electron',
+      payload: { componentId, endpointId, buttonId, timestamp: new Date().toISOString() }
     };
-    broadcastToFigmaPlugins(websocketMessageToFigmaPlugin);
-    res.status(200).json({ success: true, message: `Trigger für Endpunkt '${buttonId}' an Figma weitergeleitet.` });
-});
+    broadcastToFigmaPlugins(messageToFigma);
+    res.status(200).json({ success: true, message: `Trigger für Endpunkt '${buttonId}' weitergeleitet.` });
+  });
 
 
 // --- Server starten ---
