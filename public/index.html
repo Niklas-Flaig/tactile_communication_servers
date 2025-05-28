@@ -29,8 +29,8 @@
         <div id="activeComponentInfo" class="section">
             <h2>Aktive Komponente in Figma</h2>
             <p id="activeComponentName" class="no-active-component">Keine Hardware-Komponente in Figma ausgewählt.</p>
-            <div id="endpointButtonsContainer" class="button-grid">
-                {/* Endpunkt-Buttons werden hier dynamisch eingefügt */}
+            <div id="actionPointButtonsContainer" class="button-grid">
+                {/* ActionPoint-Buttons werden hier dynamisch eingefügt */}
             </div>
         </div>
         <div id="status"></div>
@@ -51,7 +51,7 @@
 
     <script>
         const activeComponentNameEl = document.getElementById('activeComponentName');
-        const endpointButtonsContainerEl = document.getElementById('endpointButtonsContainer');
+        const actionPointButtonsContainerEl = document.getElementById('actionPointButtonsContainer');
         const statusDiv = document.getElementById('status');
         // Gemini-bezogene Elemente bleiben wie in der vorherigen Version
 
@@ -71,7 +71,7 @@
                 console.log('Nachricht vom Server (Web-Remote):', message);
                 if (message.type === 'figma-selection-update') {
                     currentActiveComponentData = message.payload.activeComponent;
-                    updateEndpointButtons();
+                    updateActionPointButtons();
                 }
             } catch (e) {
                 console.error("Fehler beim Parsen der Server-Nachricht:", e);
@@ -82,7 +82,7 @@
             console.log('WebSocket zur Web-Remote UI getrennt.');
             activeComponentNameEl.textContent = 'Serververbindung getrennt.';
             activeComponentNameEl.className = 'no-active-component error';
-            endpointButtonsContainerEl.innerHTML = '';
+            actionPointButtonsContainerEl.innerHTML = '';
         };
         socket.onerror = (error) => {
             console.error('WebSocket Fehler (Web-Remote):', error);
@@ -91,25 +91,25 @@
         };
 
 
-        function updateEndpointButtons() {
-            endpointButtonsContainerEl.innerHTML = ''; // Alte Buttons entfernen
-            if (currentActiveComponentData && currentActiveComponentData.endpoints) {
+        function updateActionPointButtons() { // Umbenannt von updateEndpointButtons
+            actionPointButtonsContainerEl.innerHTML = ''; // Alte Buttons entfernen
+            if (currentActiveComponentData && currentActiveComponentData.actionPoints) { // Geändert von .endpoints
                 activeComponentNameEl.textContent = currentActiveComponentData.name;
                 activeComponentNameEl.className = ''; // Reset class
 
-                if (currentActiveComponentData.endpoints.length > 0) {
-                    currentActiveComponentData.endpoints.forEach(endpoint => {
+                if (currentActiveComponentData.actionPoints.length > 0) { // Geändert von .endpoints
+                    currentActiveComponentData.actionPoints.forEach(actionPoint => { // Geändert von endpoint
                         const button = document.createElement('button');
-                        button.textContent = endpoint.buttonId || endpoint.name.replace('[ENDPOINT_]', '').replace(']', '');
+                        button.textContent = actionPoint.buttonId || actionPoint.name.replace('[ACTION_]', '').replace(']', ''); // Angepasst für ACTION_
                         button.dataset.componentId = currentActiveComponentData.id;
-                        button.dataset.endpointId = endpoint.id;
-                        button.dataset.buttonId = endpoint.buttonId;
+                        button.dataset.actionPointId = actionPoint.id; // Geändert von endpointId
+                        button.dataset.buttonId = actionPoint.buttonId;
                         button.classList.add('endpoint-button');
-                        button.addEventListener('click', handleEndpointButtonClick);
-                        endpointButtonsContainerEl.appendChild(button);
+                        button.addEventListener('click', handleActionPointButtonClick); // Umbenannt
+                        actionPointButtonsContainerEl.appendChild(button);
                     });
                 } else {
-                    endpointButtonsContainerEl.innerHTML = '<p class="no-active-component">Diese Komponente hat keine definierten Endpunkte.</p>';
+                    actionPointButtonsContainerEl.innerHTML = '<p class="no-active-component">Diese Komponente hat keine definierten ActionPoints.</p>'; // Geändert
                 }
             } else {
                 activeComponentNameEl.textContent = 'Keine Hardware-Komponente in Figma ausgewählt.';
@@ -117,11 +117,11 @@
             }
         }
 
-        async function handleEndpointButtonClick(event) {
+        async function handleActionPointButtonClick(event) { // Umbenannt von handleEndpointButtonClick
             const button = event.currentTarget;
             const componentId = button.dataset.componentId;
-            const endpointId = button.dataset.endpointId;
-            const buttonId = button.dataset.buttonId; // Die "sprechende" ID des Endpunkts
+            const actionPointId = button.dataset.actionPointId; // Geändert von endpointId
+            const buttonId = button.dataset.buttonId; // Die "sprechende" ID des ActionPoints
 
             statusDiv.style.display = 'none';
             statusDiv.className = '';
@@ -130,7 +130,7 @@
                 const response = await fetch('/api/trigger-endpoint', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ componentId, endpointId, buttonId }),
+                    body: JSON.stringify({ componentId, endpointId: actionPointId, buttonId }), // sendet actionPointId als endpointId, wie vom Server erwartet
                 });
                 const result = await response.json();
                 if (response.ok && result.success) {
@@ -140,7 +140,7 @@
                     throw new Error(result.error || 'Unbekannter Fehler vom Server.');
                 }
             } catch (error) {
-                console.error('Fehler beim Triggern des Endpunkts:', error);
+                console.error('Fehler beim Triggern des ActionPoints:', error); // Geändert
                 statusDiv.textContent = `Fehler: ${error.message}`;
                 statusDiv.className = 'error';
             }
