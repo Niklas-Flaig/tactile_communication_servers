@@ -27,7 +27,7 @@ console.log("Express App initialisiert für statische Inhalte.");
 // --------------------------------------------------------------
 
 
-
+// -----------------------INIT WEBSOCKET SERVER---------------------------
 const httpServer: http.Server = http.createServer(app);
 const webSocketServer: WSServer = new WSServer({ server: httpServer });
 
@@ -36,17 +36,19 @@ const figmaClients = new Set<Socket>();
 let driverClient: Socket | null = null;
 
 
-
 webSocketServer.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
     const clientIp = req.socket?.remoteAddress || req.headers['x-forwarded-for'] as string || 'Unbekannt';
-    const roleHeader = req.headers['role'];
-    let clientRole: string | undefined = Array.isArray(roleHeader) ? roleHeader[0] : roleHeader;
+    const clientTypeHeader = req.headers['X-Client-ID'];
+    let clientType: string | undefined = Array.isArray(clientTypeHeader) ? clientTypeHeader[0] : clientTypeHeader;
 
-    console.log(`[Server] Neue WebSocket-Verbindung von IP: ${clientIp}, Rolle: ${clientRole || 'Nicht spezifiziert'}`);
+    console.log(`[Server] Neue WebSocket-Verbindung von IP: ${clientIp}, Client Typ: ${clientType || 'Nicht angegeben!'}`);
 
     let newSocket: Socket;
 
-    if (clientRole?.toLowerCase().includes('figma')) { // init new Socket für Figma-Client
+    if (clientType?.toLowerCase().includes('figma')) {
+        
+
+        // ----------------------------INIT NEW FIGMA SOCKET-----------------------
         newSocket = new Socket(ws, clientIp, 'Figma', (socketInstance: Socket, message: AppWebSocketMessage): void => {
             socketInstance.log(`Figma-Nachricht empfangen: Typ '${message.type}'`);
             // Beispiel: Leite alle Nachrichten vom Figma-Plugin an den Treiber weiter
@@ -66,8 +68,13 @@ webSocketServer.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
         // Füge den neuen Socket zu den Figma-Clients hinzu
         figmaClients.add(newSocket);
         newSocket.log('Als Figma-Client registriert.');
-        // --------------------------------------------------------
-    } else if (clientRole?.toLowerCase().includes('driver')) {
+        // -------------------------------------------------------------------------
+
+
+    } else if (clientType?.toLowerCase().includes('driver')) {
+
+
+        // ------------------------INIT DRIVER SOCKET-----------------------
         if (driverClient && driverClient.isOpen()) {
             console.warn(`[Server] Ein Treiber ist bereits verbunden (${driverClient.name}). Schließe neue Treiber-Verbindung von ${clientIp}.`);
             ws.close(1013, "Ein Treiber-Client ist bereits verbunden. Bitte versuchen Sie es später erneut."); // 1013 Try Again Later
@@ -93,10 +100,12 @@ webSocketServer.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
         // Setze den Treiber-Client
         driverClient = newSocket;
         newSocket.log('Als Treiber-Client registriert.');
-        // --------------------------------------------------------
+        // ------------------------------------------------------------------
+
+
     } else {
-        console.warn(`[Server] Unbekannte Rolle oder kein 'role'-Header empfangen von IP: ${clientIp}. Schließe Verbindung.`);
-        ws.close(1008, "Unbekannte Rolle oder kein 'role'-Header angegeben. Bitte überprüfen Sie Ihre Verbindung."); // 1008 Policy Violation
+        console.warn(`[Server] Unbekannter Client Typ oder kein 'X-Client-ID'-Header empfangen von IP: ${clientIp}. Schließe Verbindung.`);
+        ws.close(1008, "Unbekannter Client Typ oder kein 'X-Client-ID'-Header angegeben"); // 1008 Policy Violation
     }
 
     ws.on('close', (code: number, reason: Buffer) => {
@@ -113,7 +122,7 @@ webSocketServer.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
     ws.on("error", (error: Error) => {
         // newSocket ist hier möglicherweise noch nicht vollständig initialisiert oder bereits entfernt
         // Daher ist es sicherer, direkt auf console.error zurückzugreifen oder eine ID zu verwenden, falls verfügbar.
-        console.error(`[Server] WebSocket-Fehler für Verbindung von ${clientIp} (Rolle: ${clientRole || 'N/A'}):`, error.message);
+        console.error(`[Server] WebSocket-Fehler für Verbindung von ${clientIp} (Client Typ: ${clientType || 'N/A'}):`, error.message);
         // Die 'close'-Veranstaltung wird normalerweise nach 'error' ausgelöst, was das Cleanup übernimmt.
     });
 });
@@ -122,17 +131,13 @@ console.log("WebSocket Server initialisiert.");
 
 
 
-
 // Produktionsrelevante Listener für den HTTP-Server
-httpServer.listen(PORT, () => {
-    console.log(`[Server] ✅ Server läuft erfolgreich auf Port ${PORT}`);
-    console.log(`   Status-Seite erreichbar unter http://localhost:${PORT}`);
-    console.log("[Server] Warte auf WebSocket-Verbindungen...");
-});
+httpServer.listen( PORT, () => console.log(`[Server] Server läuft erfolgreich auf Port ${PORT}`) );
 
 httpServer.on('error', (error: NodeJS.ErrnoException) => {
-    console.error('[Server] 🚨 HTTP Server Fehler:', error);
+    console.error('[Server] HTTP Server Fehler:', error);
     if (error.syscall !== 'listen') throw error;
+
     switch (error.code) {
         case 'EACCES':
             console.error(`[Server] Port ${PORT} erfordert erhöhte Rechte.`); process.exit(1); break;
@@ -142,7 +147,9 @@ httpServer.on('error', (error: NodeJS.ErrnoException) => {
     }
 });
 
-// Globale Fehler-Handler für mehr Stabilität in Produktion
+
+
+// -----------------------GLOBAL ERROR HANDLER---------------------------
 process.on('uncaughtException', (error: Error, origin: string) => {
     console.error(`[Server] 🚨 Uncaught Exception: ${error.message}`, `Origin: ${origin}`, error.stack);
     // In Produktion könnte hier ein Neustartmechanismus (z.B. mit PM2) greifen
@@ -154,5 +161,6 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
     console.error('[Server] 🚨 Unhandled Rejection at:', promise, 'reason:', reason);
     process.exit(1);
 });
+// -----------------------------------------------------------------------
 
 console.log("[Server] Globale Fehler-Handler registriert.");
