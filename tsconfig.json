@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "target": "ES2020", // Oder neuer, je nach Node.js-Version
+        "module": "commonjs", // Wichtig für Node.js
+        "rootDir": "./src", // Wenn deine .ts Dateien in einem src Ordner sind
+        "outDir": "./dist", // Kompilierter JS Code landet hier
+        "esModuleInterop": true,
+        "strict": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true, // Falls du JSON-Dateien importierst
+        "noImplicitOverride": true
+    },
+    "include": [
+        "src/**/*"
+    ], // Welche Dateien kompiliert werden sollen
+    "exclude": [
+        "node_modules",
+        "**/*.spec.ts"
+    ]
+}
