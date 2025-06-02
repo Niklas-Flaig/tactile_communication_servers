@@ -105,7 +105,7 @@ webSocketServer.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
 
     } else {
         console.warn(`[Server] Unbekannter Client Typ oder kein 'X-Client-ID'-Header empfangen von IP: ${clientIp}. Schließe Verbindung.`);
-        ws.close(1008, "Unbekannter Client Typ oder kein 'X-Client-ID'-Header angegeben"); // 1008 Policy Violation
+        ws.close(1008, clientType ? `Der ClientType: ${clientType} ist unbekannt.` : "Kein 'X-Client-ID'-Header angegeben"); // 1008 Policy Violation
     }
 
     ws.on('close', (code: number, reason: Buffer) => {
