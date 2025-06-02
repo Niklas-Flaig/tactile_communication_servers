@@ -18,7 +18,7 @@ export class Socket {
     constructor(
         wsInstance: WebSocket,
         clientIP: string | undefined,
-        socketTypeName: 'Figma' | 'Driver' | 'Generic', // Für Logging und Unterscheidung
+        socketTypeName: 'Figma' | 'Driver' | 'Unknown', // Für Logging und Unterscheidung
         handlerCallback: (socketInstance: Socket, message: AppWebSocketMessage) => void
     ) {
         this.ws = wsInstance;
@@ -26,10 +26,7 @@ export class Socket {
         this.name = `[${socketTypeName} ${this.id}]`;
         this.clientIP = clientIP || null;
         this.messageHandlerCallback = handlerCallback;
-        this.init();
-    }
-
-    private init(): void {
+        
         this.ws.onopen = () => this.log('WebSocket-Verbindung geöffnet');
         this.ws.onclose = (event: WebSocket.CloseEvent) => this.log(`WebSocket-Verbindung geschlossen. Code: ${event.code}, Grund: ${event.reason}`);
         this.ws.onerror = (error: WebSocket.ErrorEvent) => this.log('WebSocket-Fehler:', error.message);
