@@ -9,7 +9,7 @@ import { ChannelInstance, FigmaCLient, DriverClient } from './Channel';
 
 
 // -----------------------INIT EXPRESS---------------------------
-const PORT: number = parseInt(process.env.PORT || "3002", 10);
+const PORT: number = parseInt(process.env.PORT || "3004", 10);
 const app: Express = express();
 
 // CORS-Middleware für Figma-Plugin und lokale Entwicklung
@@ -38,15 +38,23 @@ webSocketServer.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
 
     const clientIp = req.socket?.remoteAddress || req.headers['x-forwarded-for'] as string || 'Unbekannt';
 
-    const clientTypeHeader = req.headers['x-client-id'];
-    const clientType: string | undefined = Array.isArray(clientTypeHeader) ? clientTypeHeader[0] : clientTypeHeader;
+    // Extrahiere den Client-Typ aus dem Header 'x-client-type' oder 'Sec-WebSocket-Protocol'
+    // Fallback auf 'Sec-WebSocket-Protocol', falls 'x-client-type' nicht vorhanden ist
 
-    const channelID = req.headers['x-channel-id'] as string | undefined;
+    const clientTypeHeader = req.headers['x-client-type'] as string | string[] | undefined;
+    const channeIDHeader = req.headers['x-channel-id'] as string | undefined;
+
+    let channelID: string | undefined = Array.isArray(channeIDHeader) ? channeIDHeader[0] : channeIDHeader;
+    let clientType: string | undefined = Array.isArray(clientTypeHeader) ? clientTypeHeader[0] : clientTypeHeader;
 
 
+    if (!clientType && !channelID) {
+        const protocolHeader = req.headers['sec-websocket-protocol'];
+        clientType = Array.isArray(protocolHeader) ? protocolHeader[0] : protocolHeader?.split(',')[0]?.trim();
+        channelID = Array.isArray(protocolHeader) ? protocolHeader[1] : protocolHeader?.split(',')[1]?.trim();
+    }
 
-    // Log die neue Verbindung
-    console.log('[Server]'.padEnd(20), `Neue WebSocket-Verbindung von IP: ${clientIp}, Client Typ: ${clientType}, Channel ID: ${channelID}`);
+
 
     if (!channelID) {
         console.warn('[Server]'.padEnd(20), `Kein 'x-channel-id'-Header angegeben von IP: ${clientIp}. Verbindung wird geschlossen.`);
@@ -55,10 +63,12 @@ webSocketServer.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
     }
 
     if (!clientType) {
-        console.warn('[Server]'.padEnd(20), `Kein 'x-client-id'-Header angegeben von IP: ${clientIp}. Verbindung wird geschlossen.`);
-        ws.close(1008, "Kein 'x-client-id'-Header angegeben"); // 1008 Policy Violation
+        console.warn('[Server]'.padEnd(20), `Kein 'x-client-type'-Header angegeben von IP: ${clientIp}. Verbindung wird geschlossen.`);
+        ws.close(1008, "Kein 'x-client-type'-Header angegeben"); // 1008 Policy Violation
         return;
     }
+    // Log die neue Verbindung
+    console.log('[Server]'.padEnd(20), `Neue WebSocket-Verbindung von IP: ${clientIp}, Client Typ: ${clientType}, Channel ID: ${channelID}`);
 
 
 
@@ -100,8 +110,8 @@ webSocketServer.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
         channel.setDriverClient(driverClient);
 
     } else {
-        console.warn('[Server]'.padEnd(20), `Unbekannter Client Typ oder kein 'x-client-id'-Header empfangen von IP: ${clientIp}. Schließe Verbindung.`);
-        ws.close(1008, clientType ? `Der ClientType: ${clientType} ist unbekannt.`: "Kein 'x-client-id'-Header angegeben"); // 1008 Policy Violation
+        console.warn('[Server]'.padEnd(20), `Unbekannter Client Typ oder kein 'x-client-type'-Header empfangen von IP: ${clientIp}. Schließe Verbindung.`);
+        ws.close(1008, clientType ? `Der ClientType: ${clientType} ist unbekannt.`: "Kein 'x-client-type'-Header angegeben"); // 1008 Policy Violation
 
     }
     // ------------------------------------------------------------
