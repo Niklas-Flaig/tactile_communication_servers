@@ -1,11 +1,8 @@
 // socket.ts
 import WebSocket from 'ws';
+import { PluginToServer, ServerToPlugin, ServerToDriver } from './messages';
 
-
-type Message =
-    | { type: 'ping' }
-    | { type: 'figma-message'; data: string } // z.B. JSON-String
-    | { type: 'driver-message'; data: string } // z.B. JSON-String
+import { HardwareComponent, ActionPoint } from './types';
 
 
 export interface FigmaCLient {
@@ -26,16 +23,16 @@ export interface DriverClient {
 export class ChannelInstance {
     private figmaClients: Set<FigmaCLient> = new Set();
     private driverClient: DriverClient | null = null;
-    public readonly id: string = "unset";
+    public readonly id: string;
 
     log(message?: any, ...optionalParams: any[]): void {
-        console.log(`[Channel ${this.id}]`.padEnd(20), message, ...optionalParams);
+        console.log(`[Channel ${this.id}]`.padEnd(30), message, ...optionalParams);
     }
     warn(message?: any, ...optionalParams: any[]): void {
-        console.warn(`[Channel ${this.id}]`.padEnd(20), message, ...optionalParams);
+        console.warn(`[Channel ${this.id}]`.padEnd(30), message, ...optionalParams);
     }
     error(message?: any, ...optionalParams: any[]): void {
-        console.error(`[Channel ${this.id}]`.padEnd(20), message, ...optionalParams);
+        console.error(`[Channel ${this.id}]`.padEnd(30), message, ...optionalParams);
     }
 
     constructor(id: string) {
@@ -56,29 +53,27 @@ export class ChannelInstance {
 
         // add functions to WebSocket to handle messages
         client.socket.on('message', (data: WebSocket.Data) => {
-            
+
             let rawMessageData: string;
-            if (typeof data === 'string')           rawMessageData = data;
-            else if (Buffer.isBuffer(data))         rawMessageData = data.toString();
-            else if (data instanceof ArrayBuffer)   rawMessageData = new TextDecoder().decode(data);
+            if (typeof data === 'string') rawMessageData = data;
+            else if (Buffer.isBuffer(data)) rawMessageData = data.toString();
+            else if (data instanceof ArrayBuffer) rawMessageData = new TextDecoder().decode(data);
             else {
                 this.warn(`Unbekannter Roh-Nachrichtentyp empfangen: ${typeof data}`);
                 return;
             }
 
             try {
-                const parsedMessage = JSON.parse(rawMessageData);
+                const parsedMessage = JSON.parse(rawMessageData) as PluginToServer;
 
                 switch (parsedMessage.type) {
-                    case 'ping':
-                        // Ping-Nachrichten ignorieren oder verarbeiten
-                        this.log(`Ping-Nachricht von ${client.name} empfangen.`);
-                        break;
 
-                    case 'figma-message':
-                        this.log(`Figma-Nachricht von ${client.name} empfangen:`, parsedMessage.data);
+                    case 'get-connected-components':
+                        this.log(`Anfrage nach allen Komponenten von ${client.name} empfangen.`);
+                        this.log('forward get-connected-components to driverClient');
+                        // Hier kannst du die Logik hinzufügen, um alle Komponenten zu senden
+                        this.sendToDriverClient({ type: 'get-connected-components' });
                         break;
-
                     default:
                         this.warn('Unbekannter Nachrichtentyp empfangen:', parsedMessage.type);
                 }
@@ -104,7 +99,7 @@ export class ChannelInstance {
         this.log(`Figma-Client hinzugefügt. Aktuelle Anzahl: ${this.figmaClients.size}`);
     }
 
-    sendToFigmaClients(message: Message): void {
+    sendToFigmaClients(message: ServerToPlugin): void {
         this.figmaClients.forEach(client => {
             if (client.socket.readyState === WebSocket.OPEN) {
                 client.socket.send(JSON.stringify(message));
@@ -127,11 +122,11 @@ export class ChannelInstance {
         this.driverClient = client;
 
         client.socket.on('message', (data: WebSocket.Data) => {
-            
+
             let rawMessageData: string;
-            if (typeof data === 'string')           rawMessageData = data;
-            else if (Buffer.isBuffer(data))         rawMessageData = data.toString();
-            else if (data instanceof ArrayBuffer)   rawMessageData = new TextDecoder().decode(data);
+            if (typeof data === 'string') rawMessageData = data;
+            else if (Buffer.isBuffer(data)) rawMessageData = data.toString();
+            else if (data instanceof ArrayBuffer) rawMessageData = new TextDecoder().decode(data);
             else {
                 this.warn(`Unbekannter Roh-Nachrichtentyp empfangen: ${typeof data}`);
                 return;
@@ -140,11 +135,17 @@ export class ChannelInstance {
 
             try {
                 const parsedMessage = JSON.parse(rawMessageData);
-                if (parsedMessage.type === 'driver-message' && typeof parsedMessage.data === 'string') {
-                    this.sendToDriverClient(parsedMessage);
-                } else {
-                    this.warn('Ungültiges Nachrichtenformat empfangen:', rawMessageData.substring(0, 200));
+
+                switch (parsedMessage.type) {
+                    case 'connected-components':
+                        this.log(`Verbundene Komponenten von Treiber-Client empfangen:`, parsedMessage.components);
+                        // Hier kannst du die Logik hinzufügen, um die Komponenten zu verarbeiten
+                        this.sendToFigmaClients({ type: 'connected-components', components: parsedMessage.components });
+                        break;
+                    default:
+                        this.warn('Unbekannter Nachrichtentyp empfangen:', parsedMessage.type);
                 }
+
             } catch (e: any) {
                 this.error('Fehler beim Parsen der Nachricht als JSON:', rawMessageData.substring(0, 200), e.message);
             }
@@ -166,7 +167,7 @@ export class ChannelInstance {
         this.log('Treiber-Client gesetzt.');
     }
 
-    sendToDriverClient(message: Message): void {
+    sendToDriverClient(message: ServerToDriver): void {
         if (this.driverClient && this.driverClient.socket.readyState === WebSocket.OPEN) {
             this.driverClient.socket.send(JSON.stringify(message));
         } else {

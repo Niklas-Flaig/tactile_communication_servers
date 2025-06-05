@@ -13,7 +13,7 @@
     },
     "include": [
         "src/**/*"
-    ], // Welche Dateien kompiliert werden sollen
+        ], // Welche Dateien kompiliert werden sollen
     "exclude": [
         "node_modules",
         "**/*.spec.ts"

@@ -22,7 +22,7 @@ app.get('/', (req: Request, res: Response) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-console.log('[Server]'.padEnd(20), "Express App initialisiert für statische Inhalte.");
+console.log('[Server]'.padEnd(30), "Express App initialisiert für statische Inhalte.");
 // --------------------------------------------------------------
 
 
@@ -57,18 +57,18 @@ webSocketServer.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
 
 
     if (!channelID) {
-        console.warn('[Server]'.padEnd(20), `Kein 'x-channel-id'-Header angegeben von IP: ${clientIp}. Verbindung wird geschlossen.`);
+        console.warn('[Server]'.padEnd(30), `Kein 'x-channel-id'-Header angegeben von IP: ${clientIp}. Verbindung wird geschlossen.`);
         ws.close(1008, "Kein 'x-channel-id'-Header angegeben"); // 1008 Policy Violation
         return;
     }
 
     if (!clientType) {
-        console.warn('[Server]'.padEnd(20), `Kein 'x-client-type'-Header angegeben von IP: ${clientIp}. Verbindung wird geschlossen.`);
+        console.warn('[Server]'.padEnd(30), `Kein 'x-client-type'-Header angegeben von IP: ${clientIp}. Verbindung wird geschlossen.`);
         ws.close(1008, "Kein 'x-client-type'-Header angegeben"); // 1008 Policy Violation
         return;
     }
     // Log die neue Verbindung
-    console.log('[Server]'.padEnd(20), `Neue WebSocket-Verbindung von IP: ${clientIp}, Client Typ: ${clientType}, Channel ID: ${channelID}`);
+    console.log('[Server]'.padEnd(30), `Neue WebSocket-Verbindung von IP: ${clientIp}, Client Typ: ${clientType}, Channel ID: ${channelID}`);
 
 
 
@@ -76,7 +76,7 @@ webSocketServer.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
     let channel = channelID ? channels.get(channelID) : undefined;
 
     if (!channel) {
-        console.log('[Server]'.padEnd(20), `Neuer Channel wird erstellt für ID: ${channelID}`);
+        console.log('[Server]'.padEnd(30), `Neuer Channel wird erstellt für ID: ${channelID}`);
         const newChannel = new ChannelInstance( channelID );
         channels.set(channelID, newChannel);
         channel = newChannel;
@@ -110,7 +110,7 @@ webSocketServer.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
         channel.setDriverClient(driverClient);
 
     } else {
-        console.warn('[Server]'.padEnd(20), `Unbekannter Client Typ oder kein 'x-client-type'-Header empfangen von IP: ${clientIp}. Schließe Verbindung.`);
+        console.warn('[Server]'.padEnd(30), `Unbekannter Client Typ oder kein 'x-client-type'-Header empfangen von IP: ${clientIp}. Schließe Verbindung.`);
         ws.close(1008, clientType ? `Der ClientType: ${clientType} ist unbekannt.`: "Kein 'x-client-type'-Header angegeben"); // 1008 Policy Violation
 
     }
@@ -119,28 +119,28 @@ webSocketServer.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
 
     // ------------------------STANDARD ERROR-----------------------
     ws.on("error", (error: Error) => {
-        console.error('[Server]'.padEnd(20), `WebSocket-Fehler für Verbindung von ${clientIp} (Client Typ: ${clientType || 'N/A'}, Channel ID: ${channelID || 'N/A'}):`, error.message);
+        console.error('[Server]'.padEnd(30), `WebSocket-Fehler für Verbindung von ${clientIp} (Client Typ: ${clientType || 'N/A'}, Channel ID: ${channelID || 'N/A'}):`, error.message);
     });
     // ------------------------------------------------------------
 });
 
 
-console.log('[Server]'.padEnd(20), "WebSocket Server initialisiert.");
+console.log('[Server]'.padEnd(30), "WebSocket Server initialisiert.");
 
 
 
 // Produktionsrelevante Listener für den HTTP-Server
-httpServer.listen(PORT, () => console.log('[Server]'.padEnd(20), `Server läuft erfolgreich auf Port ${PORT}`));
+httpServer.listen(PORT, () => console.log('[Server]'.padEnd(30), `Server läuft erfolgreich auf Port ${PORT}`));
 
 httpServer.on('error', (error: NodeJS.ErrnoException) => {
-    console.error('[Server]'.padEnd(20), 'HTTP Server Fehler:', error);
+    console.error('[Server]'.padEnd(30), 'HTTP Server Fehler:', error);
     if (error.syscall !== 'listen') throw error;
 
     switch (error.code) {
         case 'EACCES':
-            console.error('[Server]'.padEnd(20), `Port ${PORT} erfordert erhöhte Rechte.`); process.exit(1); break;
+            console.error('[Server]'.padEnd(30), `Port ${PORT} erfordert erhöhte Rechte.`); process.exit(1); break;
         case 'EADDRINUSE':
-            console.error('[Server]'.padEnd(20), `Port ${PORT} wird bereits verwendet.`); process.exit(1); break;
+            console.error('[Server]'.padEnd(30), `Port ${PORT} wird bereits verwendet.`); process.exit(1); break;
         default: throw error;
     }
 });
@@ -149,16 +149,16 @@ httpServer.on('error', (error: NodeJS.ErrnoException) => {
 
 // -----------------------GLOBAL ERROR HANDLER---------------------------
 process.on('uncaughtException', (error: Error, origin: string) => {
-    console.error('[Server]'.padEnd(20), `🚨 Uncaught Exception: ${error.message}`, `Origin: ${origin}`, error.stack);
+    console.error('[Server]'.padEnd(30), `🚨 Uncaught Exception: ${error.message}`, `Origin: ${origin}`, error.stack);
     // In Produktion könnte hier ein Neustartmechanismus (z.B. mit PM2) greifen
     // oder zumindest ein Logging an einen externen Dienst erfolgen.
     process.exit(1); // Erzwingt sauberen Neustart durch Orchestrierungstools
 });
 
 process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-    console.error('[Server]'.padEnd(20), '🚨 Unhandled Rejection at:', promise, 'reason:', reason);
+    console.error('[Server]'.padEnd(30), '🚨 Unhandled Rejection at:', promise, 'reason:', reason);
     process.exit(1);
 });
 // -----------------------------------------------------------------------
 
-console.log('[Server]'.padEnd(20), "Globale Fehler-Handler registriert.");
+console.log('[Server]'.padEnd(30), "Globale Fehler-Handler registriert.");
