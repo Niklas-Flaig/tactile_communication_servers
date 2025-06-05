@@ -1,28 +1,30 @@
 
-// --- Datenstrukturen für UI und Kommunikation ---
-export type ActionPoint = { // Umbenannt von EndpointUI
+export type ActionPoint = {
     id: string;
-    name: string;
-    buttonId?: string; // Die extrahierte Button-ID (z.B. "BTN_ROT")
-    // 'connection' (für pluginData) wird entfernt.
-    triggerKey?: string | null; // Optional, falls benötigt
-    description?: string; // Optional, für zusätzliche Informationen
-    // nativeReactions?: SimplifiedReaction[]; // Für die Anzeige nativer Figma-Interaktionen
+    triggerKey: string | null;
+    description?: string;
+    hasNativeReaction?: boolean; // Gibt an, ob native Reaktionen vorhanden sind
 }
 
 export type HardwareComponent = {
-    id: string; // ID der physischen Hardware-Komponente
-    name: string; // Name der Hardware-Komponente für die Anzeige
-    type: string; // Typ der Hardware-Komponente (z.B. "BUTTON", "LED")
-    figmaComponentId: string | null; // ID der Figma-Komponente, die diese Hardware repräsentiert
-    figmaInstancesIds?: string[]; // Optional, IDs aller Instanzen dieser Komponente auf der aktuellen Seite
-    actionPoints: ActionPoint[];
-    isActive?: boolean; // Ob der ActionPoint aktiv ist
-    props?: Record<string, unknown>; // Optional, für zusätzliche Eigenschaften
+    name: string;
+    type: string;
+    hardware: {
+        id: string;
+        state?: 'ACTIVE' | 'INACTIVE';
+    };
+    interactions: Interaction[];
+    figma_data: {
+        component_id: string; // XX:YY
+        component_name: string;
+        instances: string[];
+        keystroke_map: Record<string, string | null>; // Optional: Tastaturbelegung für Interaktionen
+    }
+    props?: Record<string, unknown>;
 };
 
-
-
-
-
-
+export type Interaction = {
+    type: string; // z.B. BUTTON_PRESS, BUTTON_RELEASE
+    displayName?: string; // Optional: Anzeigename für die UI
+    description?: string; // Beschreibung der Interaktion
+}
