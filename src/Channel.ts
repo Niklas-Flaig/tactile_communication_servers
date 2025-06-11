@@ -2,9 +2,6 @@
 import WebSocket from 'ws';
 import { PluginToServer, ServerToPlugin, ServerToDriver } from './messages';
 
-import { HardwareComponent, ActionPoint } from './types';
-
-
 export interface FigmaCLient {
     socket: WebSocket;
     id: string;

@@ -1,11 +1,3 @@
-
-export type ActionPoint = {
-    id: string;
-    triggerKey: string | null;
-    description?: string;
-    hasNativeReaction?: boolean; // Gibt an, ob native Reaktionen vorhanden sind
-}
-
 export type HardwareComponent = {
     name: string;
     type: string;
@@ -18,10 +10,19 @@ export type HardwareComponent = {
         component_id: string; // XX:YY
         component_name: string;
         instances: string[];
-        keystroke_map: Record<string, string | null>; // Optional: Tastaturbelegung für Interaktionen
+        keycodes_map: Record<string, number | null>; // Optional: Tastaturbelegung für Interaktionen
     }
     props?: Record<string, unknown>;
-};
+} | {
+    name: string;
+    type: string;
+    hardware: {
+        id: string;
+        state?: 'ACTIVE' | 'INACTIVE';
+    };
+    interactions: Interaction[];
+    props?: Record<string, unknown>;
+}
 
 export type Interaction = {
     type: string; // z.B. BUTTON_PRESS, BUTTON_RELEASE
